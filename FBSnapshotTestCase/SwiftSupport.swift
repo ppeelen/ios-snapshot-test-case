@@ -20,30 +20,26 @@
 
     private func FBSnapshotVerifyViewOrLayer(_ viewOrLayer: AnyObject, identifier: String = "", suffixes: NSOrderedSet = FBSnapshotTestCaseDefaultSuffixes(), tolerance: CGFloat = 0, file: StaticString = #file, line: UInt = #line) {
       let envReferenceImageDirectory = self.getReferenceImageDirectory(withDefault: FB_REFERENCE_IMAGE_DIR)
-      var error: NSError?
       var comparisonSuccess = false
 
       if let envReferenceImageDirectory = envReferenceImageDirectory {
         for suffix in suffixes {
           let referenceImagesDirectory = "\(envReferenceImageDirectory)\(suffix)"
-          if viewOrLayer.isKind(of: UIView.self) {
-            do {
+          var errorDescription = "Unknown error description"
+
+          do {
+            if viewOrLayer is UIView {
               try compareSnapshot(of: viewOrLayer as! UIView, referenceImagesDirectory: referenceImagesDirectory, identifier: identifier, tolerance: tolerance)
               comparisonSuccess = true
-            } catch let error1 as NSError {
-              error = error1
-              comparisonSuccess = false
-            }
-          } else if viewOrLayer.isKind(of: CALayer.self) {
-            do {
+            } else if viewOrLayer is CALayer {
               try compareSnapshot(of: viewOrLayer as! CALayer, referenceImagesDirectory: referenceImagesDirectory, identifier: identifier, tolerance: tolerance)
               comparisonSuccess = true
-            } catch let error1 as NSError {
-              error = error1
-              comparisonSuccess = false
+            } else {
+              assertionFailure("Only UIView and CALayer classes can be snapshotted")
             }
-          } else {
-            assertionFailure("Only UIView and CALayer classes can be snapshotted")
+          } catch let error as NSError {
+            errorDescription = String(describing: error)
+            comparisonSuccess = false
           }
 
           assert(recordMode == false, message: "Test ran in record mode. Reference image is now saved. Disable record mode to perform an actual snapshot comparison!", file: file, line: line)
@@ -52,7 +48,7 @@
             break
           }
 
-          assert(comparisonSuccess, message: "Snapshot comparison failed: \(String(describing: error))", file: file, line: line)
+          assert(comparisonSuccess, message: "Snapshot comparison failed: \(errorDescription)", file: file, line: line)
         }
       } else {
         XCTFail("Missing value for referenceImagesDirectory - Set FB_REFERENCE_IMAGE_DIR as Environment variable in your scheme.")
